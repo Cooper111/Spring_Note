@@ -46,6 +46,17 @@ xmlns是xml命名空间的意思，而xmlns:xsi是指xml所遵守的标签规范
 ​``` 注意 写 xsi:schemaLocation  后面还有个 ">"
 ```
 
+- 一些**注解**
+
+  ```java
+  @Component("user") //这四个注解完全一样，以下三个只是为了分层
+      @Service("user")  //Service层
+      @Controller("user")  //Web层
+      @Repository("user")  //Dao层
+  public class User {
+  }
+  ```
+
 - 默认配置和默认`servlet`
 
 ![](./images/Chapter2/1.png)

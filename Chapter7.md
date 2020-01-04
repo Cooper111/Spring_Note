@@ -4,6 +4,28 @@
 
 - [超详细Mybatis入门讲解](<https://blog.csdn.net/endlessseaofcrow/article/details/80410933>)
 
+- [【报错】彻底解决mybatis 插入数据中文后显示问号(?)的问题](https://blog.csdn.net/l1509214729/article/details/80781740)
+
+- [【报错】对实体 "mybatis: characterEncoding" 的引用必须以 ';' 分隔符结尾](<https://www.jianshu.com/p/e140c1bd568b>)
+
+  ```xml
+  其实上面两个，加上设置ecplise设置workspace的编码，都没解决插入mysql乱码。
+  最后使用<filter>解决，代码    
+  	<!-- 字符编码过滤器 -->
+  	<filter>
+  	<filter-name>encoding</filter-name>
+  	<filter-class>org.springframework.web.filter.CharacterEncodingFilter</filter-class>
+  	<init-param>
+  	<param-name>encoding</param-name>
+  	<param-value>utf-8</param-value>
+  	</init-param>
+  	</filter>
+  	<filter-mapping>
+  	<filter-name>encoding</filter-name>
+  	<url-pattern>/*</url-pattern>
+  	</filter-mapping>
+  ```
+
 - `ORM`工具可以完成对象模型（`Java`）到关系模型（`Mysql`）模型的相互映射。在ORM框架中，持久化对象是一种媒介，应用程序只需要操作持久化对象，`ORM`框架则负责将这种操作转换为底层数据库操作
 
 - ORM主流框架：`JPA，Hibernate，MyBatis`
@@ -358,6 +380,38 @@
   	private UserMapper userMapper;
   ...
   	User user1 = userMapper.selectUser(name);
+  ```
+
+
+
+
+##  开发个小小项目遇到的问题
+
+结合前面所学我试着做个用户登录注册的系统，遇到的问题：
+
+- [java中String初始化的两种方式](<https://blog.csdn.net/abc_123456___/article/details/90706141>)
+
+- [java判断字符及字符串是否为为空（未赋值）](<https://blog.csdn.net/weixin_39583755/article/details/80246223>)
+
+- [multipartFile.getOriginalFilename() 空指针异常](<https://blog.csdn.net/xiaohanguo_xiao/article/details/91129329>)
+
+- `jsp`特殊符号被转义
+
+  ```html
+  <img src="file:\D:\Eclipse\.metadata\.plugins\org.eclipse.wst.server.core\tmp2\wtpwebapps\Mybatis_test\images\${user.name}.jpg" height="60">
+  
+  这里的${user.name}被原样输出
+  ```
+
+- 文件上传路径，ecplise的项目在tmp中而不再原目录中，然后tamcat的路径配置啥的····最后解决方法是使用当前的根目录即可
+
+  ```java
+  在controller中，
+  //getservletcontext()函数获取当前服务器对象，可以调用其下的各种方法
+  String path = request.getServletContext().getRealPath("/images");这样获取上传的目录
+  
+  在jsp页面中，
+  <img src="images/user.getName().jpg />这样
   ```
 
   

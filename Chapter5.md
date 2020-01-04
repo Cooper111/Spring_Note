@@ -1,5 +1,7 @@
 # `SpringMVC`的数据转换、格式化和数据校验
 
+- [spring配置错误Multiple annotations found at this line](https://blog.csdn.net/qq_40285173/article/details/78341707)
+
 - [Spring-Context之七:使用p-namesapce和c-namespace简化bean的定义](https://www.cnblogs.com/huang0925/p/3624526.html)
 
 - [@Repository的作用？](<https://blog.csdn.net/qq_40943786/article/details/80966170>)

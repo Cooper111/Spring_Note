@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:p="http://www.springframework.org/schema/p"
+	xmlns:c="http://www.springframework.org/schema/c"
+	xmlns:mvc="http://www.springframework.org/schema/mvc"
+	xmlns:context="http://www.springframework.org/schema/context"
+	
+	
+	xsi:schemaLocation="
+	http://www.springframework.org/schema/beans
+	http://www.springframework.org/schema/beans/spring-beans.xsd
+	http://www.springframework.org/schema/mvc
+	http://www.springframework.org/schema/mvc/spring-mvc.xsd
+	http://www.springframework.org/schema/context
+	http://www.springframework.org/schema/context/spring-context.xsd"
+	>
+
+	
+	<!-- spring自动扫描base-pack下面的包或者子包下面的java文件，如果扫描到有Spring相关的注解的类，则把这些类注册为Spring的bean -->
+	<context:component-scan base-package="com.skw.controller"/>
+	<!-- 默认装配方案 -->
+	<mvc:annotation-driven/>
+	<!-- 静态资源处理 -->
+	<mvc:default-servlet-handler/>
+	
+	
+	<!-- 添加MyBatis的相关配置 -->
+    <!-- 数据库连接池
+    		数据库应该如何连接
+     -->
+     <bean id="dataSource" class="com.mchange.v2.c3p0.ComboPooledDataSource">
+		<!-- 数据库的驱动程序 -->
+		<property name="driverClass" value="com.mysql.jdbc.Driver"></property>
+		<!-- 数据库连接字符串 -->
+		<property name="jdbcUrl" value="jdbc:mysql://106.52.21.254:3306/mybatis?useUnicode=true&amp;characterEncoding=utf8"></property>
+		<property name="user" value="root"></property>
+		<property name="password" value="kaiwen980826"></property>
+	</bean>
+     <!-- SQLSessionFactory -->
+     <bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean"> 
+		<property name="dataSource" ref="dataSource"></property>
+		<!-- Mybatis的核心配置文件 -->
+		<property name="configLocation" value="classpath:mybatis-config.xml"></property>
+	</bean>
+     
+     <!-- 将MyBatis的Mapper交给我们的Spring容器区管理 -->
+     <!-- 自动扫描Mapper -->
+	<bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+		<!-- 扫描 出来的Mapper交给工厂用. -->
+		<property name="sqlSessionFactory" ref="sqlSessionFactory"></property>
+		<!-- 配置需要扫描的包 -->
+		<property name="basePackage" value="com.skw.mapper"></property>
+	</bean>
+	
+	<!-- 告诉SpringMVC国际化的属性文件保存在哪里 -->
+    <bean id="messageSource"
+    		class="org.springframework.context.support.ResourceBundleMessageSource" >
+    		<property name="basenames">
+    			<list>
+    				<value>messages</value>
+    			</list>
+    		</property>
+    		<property name="defaultEncoding" value="UTF-8"></property>
+    </bean>
+ 	
+ 	
+ 	<mvc:interceptors>
+ 		<!-- 国际化操作拦截器如果采用基于（session/cookie）则必须配置 -->
+    	<bean class="org.springframework.web.servlet.i18n.LocaleChangeInterceptor"></bean>
+ 	</mvc:interceptors>
+ 	<!--     CookieLocaleResolver配置 -->
+    <bean id="localeResolver" class="org.springframework.web.servlet.i18n.CookieLocaleResolver"></bean>
+	
+	<!-- Spring MVC拦截器定义 -->
+	<mvc:interceptors>
+		<mvc:interceptor>
+			<!-- 拦截所有的请求 -->
+			<mvc:mapping path="/*"/>
+			<!-- 使用bean定义一个Interceptor -->
+			<bean class="com.skw.interceptor.AuthorizationInterceptor"/>
+		</mvc:interceptor>
+	</mvc:interceptors>
+		
+	<!-- 文件上传配置 -->
+    <bean id="multipartResolver"
+    	class="org.springframework.web.multipart.commons.CommonsMultipartResolver">
+    	<!-- 文件上传大小上限，单位为字节（10MB） -->
+    	<property name="maxUploadSize">
+    		<value>10485760</value>
+    	</property>
+    	<!-- 请求编码格式，必须和JSP的pageEncoding 属性一致，以便正确读取表单的内容，默认为 ISO-8859-1 -->
+    	<property name="defaultEncoding">
+    		<value>UTF-8</value>
+    	</property>
+    </bean>
+
+	
+
+	<!-- 视图解析器 prefix属性表示前缀  suffix属性表示后缀 -->
+	<bean id="internalResourceViewResolver" class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+        <property name="prefix" value="WEB-INF/content/"/>
+        <property name="suffix" value=".jsp"/>
+    </bean>
+    
+
+</beans>

@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "mybatis-3-mapper.dtd" >
+    <!-- 
+	1. 约束
+	2. 定义一个mapper标签, namespace设置为接口的全名
+	3. 配置方法
+		SQL语句
+		参数及返回值类型
+		方法名
+ -->
+<mapper namespace="com.skw.mapper.UserMapper">
+	<!-- 需要对接口中的每一个方法进行配置
+	1）SQL语句
+		select * from user where username = ? and password = ?
+	2）配置参数及返回值
+	 -->
+	 <!-- 
+	 第一种取值方式
+	 select * from user where username = {0} and password = {1}
+	 不知道为什么有错误
+	 第二种取值方式
+	 select * from user where username = {Param1} and password = {Param2}
+	 第三种取值方式
+	 在UserMapper.java中
+	 void select(@Param("username")String username,@Param("password")String password);
+	 然后在UserMapper.xml中
+	 select * from user where username = #{username} and password = #{password}
+	  -->
+	  
+	  
+	  
+	<!-- insert操作
+	parameterType="user"表示该插入语句需要一个user对象作为参数
+	useGeneratedKeys="true"表示使用自动增长的主键 
+	-->
+	<insert id="insertUser" parameterType="com.skw.domain.User">
+  	INSERT INTO tb_user(name,sex,age) VALUES(#{name},#{sex},#{age})
+ 	</insert>
+ 	
+ 	<!-- select操作
+	parameterType="int"表示该查询语句需要一个int类型的参数
+	resultType="user"表示返回的是一个user对象 -->
+	<select id="selectUser" resultType="com.skw.domain.User">
+  	SELECT * FROM tb_user WHERE NAME = #{name}
+	</select>
+
+	<select id="selectUsers" resultType="com.skw.domain.User">
+  	SELECT * FROM tb_user
+	</select>  
+	<!-- update操作 
+ 	parameterType="user"表示该更新语句需要一个user对象作为参数-->
+<!--  	<update id="modifyUser" parameterType="user"> -->
+<!--   	UPDATE TB_USER  -->
+<!--   	SET name = #{name},sex = #{sex},age = #{age} -->
+<!--   	WHERE id = #{id} -->
+<!-- 	</update> -->
+  
+	<!-- delete操作 parameterType="int"表示该查询语句需要一个int类型的参数-->
+<!--  	<delete id="removeUser" parameterType="int"> -->
+<!--  	DELETE FROM TB_USER WHERE id = #{id} -->
+<!-- 	</delete> -->
+</mapper>
