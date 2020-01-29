@@ -144,6 +144,10 @@
     - spring.datasource.platform=hsqldb | h2 | oracle | mysql | postgresql (与前者对应)
     ```
 
+  - H2数据库的console
+
+    ,访问`<http://localhost:8080/h2-console>`，参考见[此](<https://segmentfault.com/a/1190000015331557>)
+
 
 # 0x02 配置多数据源
 

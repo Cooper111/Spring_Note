@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.demo.mapper.ClazzMapper">
+    <resultMap id="ClazzMapper" type="com.example.demo.domain.Clazz">
+        <id property="id" column="id" />
+        <result property="code" column="code" />
+        <result property="name" column="name" />
+        <!-- 一对多关联映射：collection fetchType=“lazy”表示懒加载-->
+        <collection property="students" column="id" javaType="ArrayList"
+                    ofType="com.example.demo.domain.Student"
+                    select="com.example.demo.mapper.StudentMapper.selectStudentByClazzId"
+                    fetchType="lazy" >
+            <id property="id" column="id" />
+            <result property="name" column="name" />
+            <result property="sex" column="sex" />
+            <result property="age" column="age" />
+        </collection>
+    </resultMap>
+
+
+    <select id="selectClazzById" parameterType="INTEGER" resultMap="ClazzMapper">
+        select * from tb_clazz where id=#{id}
+    </select>
+
+    <select id="selectClazzByIdSimple" parameterType="INTEGER" resultType="com.example.demo.domain.Clazz">
+        select * from tb_clazz where id=#{clazz_id}
+    </select>
+
+</mapper>

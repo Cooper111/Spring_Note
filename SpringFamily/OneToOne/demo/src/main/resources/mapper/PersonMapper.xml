@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.demo.mapper.PersonMapper">
+    <resultMap id="personMapper" type="com.example.demo.domain.Person">
+        <id column="ID" jdbcType="INTEGER" property="id" />
+        <result column="NAME" jdbcType="VARCHAR" property="name" />
+        <result column="SEX" jdbcType="VARCHAR" property="sex" />
+        <result column="AGE" jdbcType="INTEGER" property="age" />
+        <association property="card" column="card_id"
+                     select="com.example.demo.mapper.CardMapper.selectCardById"
+                     javaType="com.example.demo.domain.Card" />
+    </resultMap>
+    <select id="selectPersonById" resultMap="personMapper" parameterType="INTEGER">
+        select * from tb_person where id=#{id}
+    </select>
+</mapper>

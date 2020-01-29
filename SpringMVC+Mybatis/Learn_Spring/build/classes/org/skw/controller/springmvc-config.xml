@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:aop="http://www.springframework.org/schema/aop"
+	xmlns:p="http://www.springframeworrk.org/schema/p"
+	xmlns:mvc="http://www.springframework.org/schema/mvc"
+	xmlns:context="http://www.springframework.org/schema/context"
+	
+	xsi:schemaLocation="
+		http://www.springframework.org/schema/beans 
+		http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/mvc
+		http://www.springframework.org/schema/mvc/spring-mvc.xsd
+		http://www.springframework.org/schema/context
+		http://www.springframework.org/schema/context/spring-context.xsd
+		http://www.springframework.org/schema/aop
+		http://www.springframework.org/schema/aop/spring-aop.xsd">
+	
+
+	<!-- spring自动扫描base-pack下面的包或者子包下面的java文件，
+	如果扫描到有Spring相关的注解的类，则把这些类注册为Spring的bean -->
+	<!-- <context:component-scan base-package="org.fkit.controller"/> -->
+	<bean id="user" class="org.skw.controller.User"></bean>
+	<bean id="myUser" class="org.skw.controller.MyUser"></bean>
+	
+	<!-- 默认装配方案 -->
+<!-- 	<mvc:annotation-driven/> -->
+	<!-- 静态资源处理 -->
+<!-- 	<mvc:default-servlet-handler/> -->
+	
+	<!-- 配置文件方式使用AOP -->
+	<!-- <aop:config>
+ 		配置切入点 
+		<aop:pointcut expression="execution(* com.xian.entity.User.*(..))" id="userPC1"/>
+		
+ 		配置切面
+ 			将增强使用于方法上
+		
+		 <aop:aspect ref="myUser">
+ 		 	配置增强的类型
+		 	<aop:before method="before" pointcut-ref="userPC1"/>
+		 	<aop:after method="after" pointcut-ref="userPC1"/>
+		 </aop:aspect>
+	</aop:config> -->
+	
+	<!-- 注解方式使用AOP -->
+	<!-- 开启AOP代理 -->
+	<aop:aspectj-autoproxy></aop:aspectj-autoproxy>
+
+	
+
+	<!-- 视图解析器 prefix属性表示前缀  suffix属性表示后缀 -->
+	<bean id="internalResourceViewResolver" class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+        <property name="prefix" value="WEB-INF/content/"/>
+        <property name="suffix" value=".jsp"/>
+    </bean>
+	
+</beans>

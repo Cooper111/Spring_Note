@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.demo.mapper.StudentMapper">
+    <resultMap id="StudentResultMapper" type="com.example.demo.domain.Student">
+        <id property="id" column="id" />
+        <result property="name" column="name" />
+        <result property="sex" column="sex" />
+        <result property="age" column="age" />
+        <!-- 多对一关联映射：ass-->
+        <association property="clazz" column="clazz_id" javaType="com.example.demo.domain.Clazz"> <!-- select="com.example.demo.mapper.ClazzMapper.selectClazzByIdSimple" -->
+            <id property="id" column="cid"/>
+            <result property="code" column="code" />
+            <result property="name" column="cname" />
+        </association>
+    </resultMap>
+
+
+    
+    <select id="selectStudentByClazzId" resultType="com.example.demo.domain.Student" parameterType="INTEGER">
+        select * from tb_student
+        where clazz_id=#{id}
+    </select>
+    
+    <select id="selectStudentById" resultMap="StudentResultMapper" parameterType="INTEGER">
+        select s.*, c.id as cid, c.name as cname, code from tb_student s, tb_clazz c
+        where s.clazz_id = c.id
+        and s.id = #{id}
+    </select>
+    
+</mapper>

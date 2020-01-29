@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:aop="http://www.springframework.org/schema/aop"
+	xmlns:p="http://www.springframeworrk.org/schema/p"
+	xmlns:mvc="http://www.springframework.org/schema/mvc"
+	xmlns:context="http://www.springframework.org/schema/context"
+	
+	xsi:schemaLocation="
+		http://www.springframework.org/schema/beans 
+		http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/mvc
+		http://www.springframework.org/schema/mvc/spring-mvc.xsd
+		http://www.springframework.org/schema/context
+		http://www.springframework.org/schema/context/spring-context.xsd
+		http://www.springframework.org/schema/aop
+		http://www.springframework.org/schema/aop/spring-aop.xsd">
+	
+
+	<!-- spring自动扫描base-pack下面的包或者子包下面的java文件，
+	如果扫描到有Spring相关的注解的类，则把这些类注册为Spring的bean -->
+	<!-- <context:component-scan base-package="org.fkit.controller"/> -->
+	
+	<!-- 配置bean -->
+	<bean id="MyUser" class="org.skw.xmlAop.MyUser"></bean>
+	<!-- 配置切面 -->
+	<bean id="aspect" class="org.skw.xmlAop.LoggingAspect"></bean>
+
+	<!--配置AOP  -->
+	<aop:config proxy-target-class="true" >
+		<!-- 配置切点表达式 -->
+		<aop:pointcut id="pointcut" expression="execution(* org.skw.xmlAop.User.*(..))"></aop:pointcut>
+		<!-- 配置切面和通知 -->
+		<aop:aspect ref="aspect" order="1">
+			<aop:before method="beforeMethod" pointcut-ref="pointcut"/>
+			<aop:after method="afterMethod" pointcut-ref="pointcut"/>
+			<aop:after-returning method="afterReturning" pointcut-ref="pointcut" returning="result"/>
+			<aop:after-throwing method="afterThrowing" pointcut-ref="pointcut" throwing="e"/>
+<!-- 			<aop:around method="around" pointcut-ref="pointcut"/> -->
+		</aop:aspect>
+	</aop:config>
+	
+	
+	<!-- 注解方式使用AOP -->
+	<!-- 开启AOP代理 -->
+	<!-- <aop:aspectj-autoproxy></aop:aspectj-autoproxy> -->
+
+	
+
+	<!-- 视图解析器 prefix属性表示前缀  suffix属性表示后缀 -->
+	<bean id="internalResourceViewResolver" class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+        <property name="prefix" value="WEB-INF/content/"/>
+        <property name="suffix" value=".jsp"/>
+    </bean>
+	
+</beans>

@@ -520,3 +520,79 @@
     - 语法解析在 Part 中
 
 
+
+# 0x08 SpringBucks项目小结
+
+把关于JPA的知识点串了一遍，主要关注了以下几点
+
+- application.properties中
+
+  ```properties
+  spring.jpa.hibernate.ddl-auto=none
+  #参数create-drop ：启动时删数据库中的表，然后创建，退出时删除数据表 如果表不存在报错
+  ```
+
+- **model（POJO）**中
+
+  创建`BaseEntity`写共有属性，子类Coffee和COffeeOrder
+
+- **Repository**中
+
+  都是继承`extends JpaRepository<子类, Long>`
+
+- **Service**中
+
+  **CoffeeService**调用`coffeeRepository.findOne`接口，传入`Example`和`ExampleMatcher`，实现**findOneCoffee**方法
+
+  **COffeeOrderService**调用 `orderRepository.save(order)`方法实现**createOrder**和**updateState**方法，注意updateState中有**不可逆的**业务逻辑，如下：
+
+  ```java
+  if (state.compareTo(order.getState()) <= 0) {
+              log.warn("Wrong State order: {}, {}", state, order.getState());
+              return false;
+          }
+  ```
+
+- **Application**中
+
+  测试方法
+
+  ```java
+  coffeeRepository.findAll()
+  coffeeService.findOneCoffee() {}
+  orderService.createOrder()
+  orderService.updateState() #测试了不可逆业务
+  ```
+
+- 运行结果
+
+  - coffeeRepository.findAll
+
+      ```verilog
+      2020-01-26 17:51:36.479  INFO 13552 --- [  restartedMain] com.example.demo.DemoApplication         : ALL Coffee: [Coffee(super=BaseEntity(id=1, createTime=2020-01-26 17:51:33.961, updateTime=2020-01-26 17:51:33.961), name=espresso, price=CNY 20.00), Coffee(super=BaseEntity(id=2, createTime=2020-01-26 17:51:33.969, updateTime=2020-01-26 17:51:33.969), name=latte, price=CNY 25.00), Coffee(super=BaseEntity(id=3, createTime=2020-01-26 17:51:33.969, updateTime=2020-01-26 17:51:33.969), name=capuccino, price=CNY 25.00), Coffee(super=BaseEntity(id=4, createTime=2020-01-26 17:51:33.969, updateTime=2020-01-26 17:51:33.969), name=mocha, price=CNY 30.00), Coffee(super=BaseEntity(id=5, createTime=2020-01-26 17:51:33.969, updateTime=2020-01-26 17:51:33.969), name=macchiato, price=CNY 30.00)]
+      ```
+
+  - coffeeService.findOneCoffee
+
+    ```verilog
+    Coffee Found: Optional[Coffee(super=BaseEntity(id=2, createTime=2020-01-26 17:51:33.969, updateTime=2020-01-26 17:51:33.969), name=latte, price=CNY 25.00)]
+    ```
+
+  - orderService.createOrder
+
+      ```verilog
+      New Order: CoffeeOrder(super=BaseEntity(id=1, createTime=Sun Jan 26 17:51:36 CST 2020, updateTime=Sun Jan 26 17:51:36 CST 2020), customer=Li lei, items=[Coffee(super=BaseEntity(id=2, createTime=2020-01-26 17:51:33.969, updateTime=2020-01-26 17:51:33.969), name=latte, price=CNY 25.00)], state=INIT)
+      ```
+
+  - orderService.updateState
+
+      ```verilog
+      2020-01-26 17:51:36.743  INFO 13552 --- [  restartedMain] c.e.demo.service.CoffeeOrderService      : Updated Order: CoffeeOrder(super=BaseEntity(id=1, createTime=Sun Jan 26 17:51:36 CST 2020, updateTime=Sun Jan 26 17:51:36 CST 2020), customer=Li lei, items=[Coffee(super=BaseEntity(id=2, createTime=2020-01-26 17:51:33.969, updateTime=2020-01-26 17:51:33.969), name=latte, price=CNY 25.00)], state=PAID)
+      
+      
+      2020-01-26 17:51:36.747  INFO 13552 --- [  restartedMain] com.example.demo.DemoApplication         : Update INIT to PAID:true
+      2020-01-26 17:51:36.748  WARN 13552 --- [  restartedMain] c.e.demo.service.CoffeeOrderService      : Wrong State order: INIT, PAID
+      2020-01-26 17:51:36.748  INFO 13552 --- [  restartedMain] com.example.demo.DemoApplication         : Update INIT to PAID:false
+      ```
+
+      
