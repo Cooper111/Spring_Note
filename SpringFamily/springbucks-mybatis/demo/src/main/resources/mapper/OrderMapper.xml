@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.demo.mapper.OrderMapper">
+    <resultMap id="CoffeeMap" type="com.example.demo.model.Coffee">
+        <id column="ID" jdbcType="BIGINT" property="id" />
+        <result column="NAME" jdbcType="VARCHAR" property="name" />
+        <result column="PRICE" jdbcType="BIGINT" property="price" typeHandler="com.example.demo.handler.MoneyTypeHandler" />
+        <result column="CREATE_TIME" jdbcType="TIMESTAMP" property="createTime" />
+        <result column="UPDATE_TIME" jdbcType="TIMESTAMP" property="updateTime" />
+    </resultMap>
+
+    <resultMap id="OrderMap" type="com.example.demo.model.CoffeeOrder">
+        <id column="ID" jdbcType="BIGINT" property="id" />
+        <result column="CREATE_TIME" jdbcType="TIMESTAMP" property="createTime" />
+        <result column="UPDATE_TIME" jdbcType="TIMESTAMP" property="updateTime" />
+        <result column="CUSTOMER" jdbcType="VARCHAR" property="customer" />
+        <result column="STATE" jdbcType="INTEGER" property="state" />
+        <!--<collection property="ITEMS" resultMap="CoffeeMap" />-->
+    </resultMap>
+
+    <resultMap id="OrderMap1" type="com.example.demo.model.CoffeeOrder" extends="com.example.demo.mapper.OrderMapper.OrderMap">
+        <collection property="ITEMS" resultMap="CoffeeMap" />
+    </resultMap>
+    
+    <insert id="saveOrder" parameterType="com.example.demo.model.CoffeeOrder" useGeneratedKeys="true" keyProperty="id">
+        insert into t_order (create_time, update_time, customer, state) values (#{createTime,jdbcType=TIMESTAMP},#{updateTime,jdbcType=TIMESTAMP},#{customer,jdbcType=VARCHAR},#{state,typeHandler=org.apache.ibatis.type.EnumOrdinalTypeHandler})
+    </insert>
+    <update id="updateState" >
+        update t_order set state=#{state}
+        where id=#{order.id}
+    </update>
+
+</mapper>
