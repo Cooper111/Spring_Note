@@ -367,10 +367,23 @@
 
   - 根据⽅法名定义查询
     - find…By… / read…By… / query…By… / get…By…
+
     - count…By…
+
     - …OrderBy…[Asc / Desc]
+
     - And / Or / IgnoreCase
+
     - Top / First / Distinct
+
+    - 当返回结果为list时候加入In：
+
+      ```java
+      //e.g.
+      public interface CoffeeRepository extends JpaRepository<Coffee, Long> {
+          List<Coffee> findByNameInOrderById(List<String> list);
+      }
+      ```
 
 - 分⻚查询的实现
 
