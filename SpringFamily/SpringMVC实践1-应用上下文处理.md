@@ -401,3 +401,104 @@ public List<Coffee> getAllCoffee() {
   - 正确的实验结果
 
     ![](./images/6-3.png)
+
+
+
+# 0x03 理解请求处理机制
+
+- Spring MVC请求处理流程
+
+  ![](./images/6-8.png)
+
+  这里`Front controller`就是`Dispatch Servlet`，收到请求后会把请求代理给`Controller`处理类，处理完后会返回一个`Model`给`DispatchServlet`，`DispatchServlet`再将Model交给视图解析器，处理完后再返回`DispatchServlet`，最后返回请求。
+
+- 一个请求的大致处理流程
+
+  ![](./images/6-9.png)
+
+- DispatchServlet类源码
+
+  在`spring-webmvc.jar`包的`org/springframework/web/servlet`下
+
+  - 继承关系：`DispatchServlet` **—extends—>**  `FrameworkServlet` **—extends—>**`HttpServletBean`
+
+  - 核心方法：
+
+    - （函数`doService`内）`void doService(HttpServletRequest request, HttpServletResponse response)`,内部做了request内部的赋值
+
+    - （函数`doService -> doDispatch`内）然后在`doService`内进入到`doDispatch(request, response)`这里传入了`request`和`response`，首先`checkMultipart(request)`检查是否是`Multipart`请求，是的话会调用`this.multipartResolver.resolveMultipart(request)`进行解析，完成后请求变为MultiPart解析后的请求（不是原请求了）。
+
+    - （函数`doService -> doDispatch`内）然后`getHandler`去取`Handler`。调用`mappedHandler.applyPreHandle(processedRequest, response)`对`Handler`做一个预处理，然后在`ha.handle(processedRequest, response, mappedHandler.getHandler())`做对实际`Handler`的调用
+
+      （注：关于前置的Handler预处理和后置的处理，下次课程会讲）
+
+    - （函数`doService -> doDispatch`内）这里Handler对具体方法的各种处理没详细展开，以后学进去了再补了。在网上看到一个对HandlerAdapter的源码深究的好博客：[链接](<https://www.cnblogs.com/wangbenqing/p/7384518.html>)
+
+      > 介绍了为什么用HandlerAdapter将Controller封装起来，再在HandlerAdapter的handle方法里执行Controller的handleRequest方法，
+      >
+      > 而不是直接DispatcherServlet直接用Controller的handleRequest方法执行具体请求
+
+      ![](./images/6-10.png)
+
+    - （函数`doService -> doDispatch`内）在Handler方法执行后，在`this.applyDefaultViewName(processedRequest, mv);`开始解析返回的`ModelAndView`,找到`View`的名字。如果一切顺利的话，后面就是做视图渲染的动作。
+
+  - 通过**DeBug**的方式来**找到Handler**
+
+    首先得清楚一点。Controller是针对指定的类，Handler是针对指定的类的指定的方法。现在目标为找到某一个Handler。
+
+    - 用**Debug**标记DoDispath方法内的 `this.getHandler(processedRequest)`，并使用**RestfulTools测试**发起请求
+
+      ![](./images/6-11.png)
+
+    - 看看是如何寻找Handler的：
+
+      ![](./images/6-12.png)
+
+      ​        在Dispatch Servlet中有一些Handler Mapping，其中的序号为0的`RequestMappingHandlerMapping`，就是去处理`RequestMapping`注解所绑定的一些`RequestMapping`的；还有一些其他的HandlerMapping。
+
+      ​       这些handlerMapping会每一个都去找一下这个handler，点击![](./images/6-13.png)
+
+      这个进去
+
+      ![](./images/6-14.png)
+
+      会对每一个HandlerMappings做一个遍历
+
+      ![](./images/6-15.png)
+
+      这里点击按钮，this会遍历HandlerMapping，如果有哪一个找到了**HandlerExecutionChain**,就直接返回；若走遍了没有，返回null
+
+      - 这里演示了一个没有找到的
+
+        ![](./images/6-17.png)
+
+        ![](./images/d6-18.png)
+
+      - 找到正确的
+
+        ![](./images/6-16.png)
+
+        这里编译完后`.class`里，直接getHandler返回的就是正确的Handler了，而且也直接返回最终的Handler结果（正确Handler、路径、对应方法后）——**HandlerExecutionChain**：
+
+      ![](./images/6-19.png)
+
+        然后进入`RequestMappingHandler`看一下。在这里会做一个寻找，会找到自己的目标。如图所示是按照路径`“coffee/1”`进行寻找，并做匹配
+
+      ![](./images/6-20.png)
+
+        匹配成功时返回的matchs。图中所示Get请求，请求路径为`“coffee/id”`，产生的是一个`application/json`
+
+      ![](./images/6-21.png)
+
+        找到对应的方法
+
+      ![](./images/6-22.png)
+
+      最后返回的是一个**HandlerExecutionChain**。
+
+- 小插曲1：IDEA无法下载源码
+
+  解决办法：[【已解决】在IDEA中使用Maven下载依赖源码](<https://blog.csdn.net/Chameleons1/article/details/89148000>)
+
+- 小插曲2：[如何在IDEA上查看源码](<https://blog.csdn.net/qq_28666081/article/details/83898684>)
+

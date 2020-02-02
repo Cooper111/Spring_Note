@@ -170,3 +170,5 @@ xmlns是xml命名空间的意思，而xmlns:xsi是指xml所遵守的标签规范
 
 
 代码实现借鉴文中出现的参考博客，稍后整理至[我的Github](<https://github.com/Cooper111>)
+
+更新，已整理至[此](<https://github.com/Cooper111/Spring_Note/tree/master/SpringMVC%2BMybatis/Learn_Spring>)
