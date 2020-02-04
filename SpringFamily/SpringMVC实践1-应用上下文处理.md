@@ -502,3 +502,591 @@ public List<Coffee> getAllCoffee() {
 
 - 小插曲2：[如何在IDEA上查看源码](<https://blog.csdn.net/qq_28666081/article/details/83898684>)
 
+
+
+
+
+# 0X04 如何定义处理方法
+
+本节课讲如何定义Controller，和Controller的那些方法
+
+- 定义映射关系
+
+  ![](./images/6-23.png)
+
+  其中consumes限定请求的**content-type**。
+
+- 定义处理方法
+
+  ![](./images/6-24.png)
+
+  - 详细参数：
+
+    <https://docs.spring.io/spring/docs/5.1.5.RELEASE/spring-framework-reference/web.html#mvc-ann-arguments>
+
+  - 详细返回
+
+    <https://docs.spring.io/spring/docs/5.1.5.RELEASE/spring-framework-reference/web.html#mvc-ann-return-types>
+
+- 方法示例1
+
+  ![](./images/6-25.png)
+
+  `@PostMapping`这里`consumes`限定了请求必须带**Content-Type头**，且值必须为Json；`produces`限定了返回值也为Json且为UTF8编码，所以对应的我的**Accept头**必须要能接收。
+
+  `@RequestBody`这里之前也记录过了，传入的**json**要和`NewOrder`里的属性**一一对应**。
+
+  
+
+- 方法示例2
+
+  ![](./images/6-26.png)
+
+  `@PathVariable`从uri中取得id作为参数，这里并没有指定参数名字，该注解也可以添加指定。
+
+  `@GetMapping`里params指定请求要有name参数，通过`@RequestParam`取得
+
+  注：（1）如果params = “!name”，则不存在name参数时才匹配到
+
+  ​	（2）如果params = "name!=David"，则name参数不为David时才匹配到
+
+
+
+- 项目示例：**Springbucks**
+
+  其余的基本和之前一样··放一点不一样的
+
+  - BaseEntity
+
+    ```java
+    @MappedSuperclass
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @JsonIgnoreProperties(value = {"hibernateLazyInitializer"})
+    public class BaseEntity implements Serializable {
+        @Id
+        @GeneratedValue(strategy = GenerationType.IDENTITY)
+        private Long id;
+        @Column(updatable = false)
+        @CreationTimestamp
+        private Date createTime;
+        @UpdateTimestamp
+        private Date updateTime;
+    }
+    ```
+
+    为什么要加`@JsonIgnoreProperties(value = {"hibernateLazyInitializer"})` 或者
+    `spring.jackson.serialization.fail-on-empty-beans=false`?
+
+    (注：不加的话会报错`Type definition error: [simple type, class org.hibernate.proxy.pojo.bytebuddy.ByteBuddyInterceptor];`)
+
+    ```
+    作者回复: 这里正好返回的是Hibernate的代理对象，如果没有加jackson-datatype-hibernate5这个依赖，序列化时就会报错，因此要做些特殊的属性处理。后面的例子中我们会在waiter-service的pom.xml里加上jackson-datatype-hibernate5的，后续的课程示例里你可以留意一下。
+    ```
+
+  - CoffeeController
+
+    ```java
+    package com.example.demo.controller;
+    
+    import com.example.demo.model.Coffee;
+    import com.example.demo.service.CoffeeService;
+    import org.springframework.beans.factory.annotation.Autowired;
+    import org.springframework.http.MediaType;
+    import org.springframework.stereotype.Controller;
+    import org.springframework.web.bind.annotation.*;
+    
+    import java.util.List;
+    
+    @Controller
+    @RequestMapping("/coffee")
+    public class CoffeeController {
+        @Autowired
+        private CoffeeService coffeeService;
+    
+        @GetMapping(path = "/", params = "!name")
+        @ResponseBody
+        public List<Coffee> getALL() {
+            return coffeeService.getAllCoffee();
+        }
+    
+        @GetMapping(path = "/", params = "name")
+        @ResponseBody
+        public Coffee getByName(@RequestParam String name) {
+            return coffeeService.getCoffee(name);
+        }
+    
+        @RequestMapping(path = "/{id}", method = RequestMethod.GET,
+                produces = MediaType.APPLICATION_JSON_UTF8_VALUE)
+        @ResponseBody
+        public Coffee getById(@PathVariable Long id) {
+            Coffee coffee = coffeeService.getCoffee(id);
+            return coffee;
+        }
+    }
+    ```
+
+  - CoffeeOrderController
+
+    ```java
+    package com.example.demo.controller.request;
+    
+    import com.example.demo.model.Coffee;
+    import com.example.demo.model.CoffeeOrder;
+    import com.example.demo.service.CoffeeOrderService;
+    import com.example.demo.service.CoffeeService;
+    import lombok.extern.slf4j.Slf4j;
+    import org.springframework.beans.factory.annotation.Autowired;
+    import org.springframework.http.HttpStatus;
+    import org.springframework.http.MediaType;
+    import org.springframework.web.bind.annotation.*;
+    
+    @RestController
+    @RequestMapping("/order")
+    @Slf4j
+    public class CoffeeOrderController {
+        @Autowired
+        private CoffeeOrderService orderService;
+        @Autowired
+        private CoffeeService coffeeService;
+    
+        @GetMapping
+        public CoffeeOrder getOrder(@PathVariable("id") Long id) {
+            return orderService.get(id);
+        }
+        @PostMapping(path = "/", consumes = MediaType.APPLICATION_JSON_VALUE,
+            produces = MediaType.APPLICATION_JSON_UTF8_VALUE)
+        @ResponseStatus(HttpStatus.CREATED)
+        public CoffeeOrder create(@RequestBody NewOrderRequest newOrder) {
+            log.info("Receive new Order: {}", newOrder);
+            Coffee[] coffeeList = coffeeService.getCoffeeByName(newOrder.getItems())
+                    .toArray(new Coffee[]{});
+            return orderService.createOrder(newOrder.getCustomer(), coffeeList);
+        }
+    
+    }
+    ```
+
+  - 【查询咖啡】不带参数访问`“/coffee”`,全部结果返回
+
+    ![](./images/6-27.png)
+
+  - 【查询咖啡】带参数访问`"/coffee"`，只返回对应结果
+
+    ![](./images/6-28.png)
+
+  - 【创建订单】访问“/order”，注意看请求头
+
+    ![](./images/6-29.png)
+
+    RequestBody：
+
+    ```json
+    {
+    	"customer": "Shen Kevin",
+    	"items": [
+    		"mocha", "macchiato"	
+    	]
+    }
+    ```
+
+    如果去掉`Content-Type`和`Accept`，会报错返回415的状态码
+
+  
+
+  # 0X05 定义类型装换
+
+  ![](./images/6-30.png)
+
+  
+
+  - 康康**WebMvcAutoConfiguration源码**
+
+    源码在`spring-boot-autoconfigure`包下`org.springframework.boot.autoconfigure.web.servlet`下
+
+    - WebMvcAutoConfigurationAdapter
+
+      ![](./images/6-31.png)
+
+      继承了`WebMvcConfigurer`类，这个父类采用default的方式。
+
+    - **重点函数：addFormatter**,这个函数可以**处理**`Converter、Formatter、GenericConverter`这三种类型的**Bean**并**添加到registry**里
+
+      ![](./images/6-32.png)
+
+      进入到ApplicationConversionService里
+
+      ![](./images/6-33.png)
+
+      比方说对于`Converter`，这里的`registry.addConverter`方法是`GenericConversionService.addConverter`方法，进入查看：
+
+      ![](./images/6-34.png)
+
+      这里会做一个转换，**将Converter转为ConverterAdapter添加进来**；
+
+      对于Formatter，`registry.addFormatter`
+
+      ![](./images/6-35.png)
+
+      再进去：
+
+      ![](./images/6-36.png)
+
+      会把**Formatter**的`Printer`和`Parser`分别添加进去
+
+      这里有对`Printer`和`Parser`的介绍，[点此链接](<https://cloud.tencent.com/developer/article/1497655>)
+
+      ```
+      # Printer: 
+      格式化显示接口，将T类型的对象根据Locale信息以某种格式进行打印显示（即返回字符串形式）
+      # Parser:
+      解析接口，根据Locale信息解析字符串到T类型的对象
+      ```
+
+
+
+
+
+# 0x06 定义校验
+
+![](./images/6-37.png)
+
+使用`Hibernate Validator`，在绑定的对象上添加**@Vaild**注解，SpringMVC便会做一个Validation，绑定的检查的结果通过`BindingResult`传递进来
+
+
+
+[一个表单数据校验的例子](<https://www.cnblogs.com/tenWood/p/8644899.html>)
+
+
+
+# 0x07 Multipart上传
+
+![](./images/6-38.png)
+
+让我们来康康MultipartAutoConfiguration源码
+
+![](./images/6-39.png)
+
+看到`MultipartProperties multipartProperties`这个属性，在
+
+```java
+@Bean
+	@ConditionalOnMissingBean({ MultipartConfigElement.class, CommonsMultipartResolver.class })
+	public MultipartConfigElement multipartConfigElement() {
+		return this.multipartProperties.createMultipartConfig();
+	}
+```
+
+这个函数中，配置了个`MultipartResolver`,用的是标准的Resolver：`StandardServletMultipartResolver()`
+
+
+
+`MultipartProperties multipartProperties`这个属性是`MultipartProperties`类，其内有位置、文件大小、请求大小等配置属性。
+
+![](./images/6-40.png)
+
+
+
+## 小项目：**more-complex-controller-demo**
+
+​        这个项目是针对类型转换、校验和文件上传的。
+
+​	与之前相比，**改动在于Controller，和MoneyFormatter**。还记得在学数据操作时候的MoneyHandler吗，那是jdbc转换用的，别搞混了。
+
+#### MoneyFormatter
+
+![](./images/6-41.png)
+
+- 这里把MoneyFormatter注册成为@Component即可，理由上面有啦~
+
+- 在parse方法里
+
+  - Money.of(CurrencyUnit.of("CNY"), NumberUtils.createBigDecimal(text))
+
+    BigDecimal类用来对超过16位有效位的数进行精确的运算，[参考链接](<https://www.cnblogs.com/zhangyinhua/p/11545305.html>)
+
+  - StringUtils.isNotEmpty(text)
+
+    判断文本不为空
+
+
+
+### CoffeeService
+
+- 数据校验
+
+  ![](./images/6-42.png)
+
+  其中`NewCoffeeRequest`
+
+  ```java
+  @Getter
+  @Setter
+  @ToString
+  public class NewCoffeeRequest {
+      @NotEmpty
+      private String name;
+      @NotNull
+      private Money price;
+  }
+  ```
+
+  **重点！**这里并没有加`@RequestBody`来将请求正文变成对象，而是通过`RequestParameter`将请求表单的参数一个个绑定的。这里有一篇[对Request.parameter的解析](<https://blog.csdn.net/zhanglu0223/article/details/96863748>)
+
+  
+
+  这里，如果不写`consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE`也是可以处理表单的，但后续有一个同样路由到同路径，`consumes = MediaType.MULTIPART_FORM_DATA_VALUE`来处理文件的，所以这指明参数来重载了
+
+  注：
+
+  ```java
+  @RequestParam:
+  	注解接收的参数是来自于requestHeader中，即请求头，也就是在url中。多用于GET请求
+  @RequestBody:
+  	注解接收的参数则是来自于requestBody中，即请求体中。多用于POST请求
+  ```
+
+  - 测试结果 
+
+    ![](./images/6-44.png)咖啡创建成功！如果price为“CNY 25.0”也可成功
+
+  - 如果去掉name属性，会报错“Not Empty”
+
+    ![](./images/6-45.png)
+
+    ![](./images/6-47.png)
+
+
+
+#### [postman中 form-data、x-www-form-urlencoded、raw、binary的区别--转](https://www.cnblogs.com/davidwang456/p/7799096.html)
+
+  **multipart/form-data与x-www-form-urlencoded区别**
+
+> multipart/form-data：既可以上传文件等二进制数据，也可上传表单键值对，只是最后会转化为一条信息
+>
+> x-www-form-urlencoded：只能上传键值对，并且键值对都是间隔分开的。
+
+
+
+提问！如果我不希望SpringMVC来介入我的Validation失败后的操作，我希望自己来控制，该怎么办呢？
+
+——使用`BuildingResult`,例子见下
+
+```java
+@PostMapping(path = "/", consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
+    @ResponseBody
+    @ResponseStatus(HttpStatus.CREATED)
+    public Coffee addCoffee(@Valid NewCoffeeRequest newCoffee,
+                            BindingResult result) {
+        if (result.hasErrors()) {
+            // 这里先简单处理一下，后续讲到异常处理时会改
+            log.warn("Binding Errors: {}", result);
+            return null;
+        }
+        return coffeeService.saveCoffee(newCoffee.getName(), newCoffee.getPrice());
+    }
+```
+
+此时测试，去掉name属性，报错返回即为空值了
+
+![](./images/6-46.png)
+
+
+
+
+
+- 文件上传
+
+  ![](./images/6-43.png)
+
+  测试结果
+
+  ![](./images/6-48.png)
+
+
+
+
+
+# 0x08 SpringMVC的视图解析机制
+
+- ## 视图解析的实现基础
+
+  ![](./images/6-49.png)
+
+  视图主要通过**ViewResolver类**来解析的
+
+  - `AbstractCachingViewResolver`，关于缓存的抽象基类
+  - `ContentNegotiatingViewResolver`,通过我可以接受的返回类型来选择合适的响应，比如要求Xml响应则会返回xml
+  - `InternalResolver`是默认的放于解析链最后的解析器，用于处理Jsp和jstl的
+
+  所有的ViewResolver都在解析后会返回个View对象，用于呈现
+
+  
+
+- ## DispatchServlet中的试图解析逻辑
+
+  ![](./images/6-50.png)
+
+  `initViewResolvers()`对应源码，初始化加载了应用上下文里所有的ViewResolver，如果不想检测所有的ViewResolver，则更改如下的函数：
+
+  ```java
+  //boolean detectAllViewResolvers默认值为true
+  public void setDetectAllViewResolvers(boolean detectAllViewResolvers) {
+     this.detectAllViewResolvers = detectAllViewResolvers;
+  }
+  ```
+
+  这个是应用上下文里所有的ViewResolver
+
+  ```java
+  //DispatchServlet类里
+  	/** List of ViewResolvers used by this servlet. */
+  	@Nullable
+  	private List<ViewResolver> viewResolvers;
+  ```
+
+  ![](./images/6-51.png)
+
+  进入initResolvers函数，这里从BeanFactory里取到了所有ViewResolver的Bean，然后去做了一个排序
+
+  ![](./images/6-58.png)
+
+  
+
+  `processDispatchResult()`对应源码
+
+  ![](./images/6-52.png)
+
+  这里会做从视图名到具体视图的解析，进入
+
+  ![](./images/6-53.png)
+
+  ![](./images/6-54.png)
+
+  这里，如果解析成功，返回了`View`对象给`render`函数，进入
+
+  ![](./images/6-55.png)
+
+  `render`函数里，`resolveViewName`从视图名到视图的解析。然后调用视图view的方法：`view.render`进行渲染：`view.render(mv.getModelInternal(), request, response);`
+
+  进入`view.render`
+
+  ![](./images/6-61.png)
+
+  其中`prepareResponse`函数为Response做了一些准备工作，比如设置`Header`
+
+  然后`renderMergedOutputModel`函数，输出response等合并的输出结果，下面是函数的申明
+
+  ```java
+  protected abstract void renderMergedOutputModel(
+  Map<String, Object> model, HttpServletRequest request, HttpServletResponse response) throws Exception;
+  ```
+
+  
+
+  如果**没有返回视图**的话，尝试`RequestViewNameTranslator`，具体过程见下：
+
+  找到了个它的初始化函数
+
+  ![](./images/6-56.png)
+
+  这里是它的使用，`this.viewNameTranslator`即是一个`RequestViewNameTranslator`类
+
+  ![](./images/6-59.png)
+
+  ![](./images/6-57.png)
+
+  在`doDispatch`函数，执行在在`processDispatchResult`函数前，先加载默认的viewName对应的View对象；所以`processDispatchResult`函数，若**没有解析出view对象**是`return;`，
+
+  ![](./images/6-60.png)
+
+  
+
+  - ### 使用@ResponseBody的情况
+
+    ![](./images/6-62.png)
+
+    这里我懒了····不想再贴源码的截图了，简单记录，如下：
+
+    ```java
+    //DidpatchServlet.java  						doDispatch()
+    HandlerAdapter ha = getHandlerAdapter(mappedHandler.getHandler());
+    //AbstractHandlerMtthodAdapter.java 			handler()
+    handleInternal(request, response, (HandlerMethod) handler)
+    //RequestMappingHandlerAdapter.java				handleInternal()
+    mav = invokeHandlerMethod(request, response, handlerMethod);
+    //RequestMappingHandlerAdapter.java				invokeHandlerMethod()
+       //这是一个returnValueHandler的组合 
+      invocableMethod.setHandlerMethodReturnValueHandlers(this.returnValueHandlers);
+      //真正方法执行
+    invocableMethod.invokeAndHandle(webRequest, mavContainer);
+    //ServletInvocableHandlerMethod.java			invokeAndHandle()
+    	//取到returnValue，就是比如说一个Coffee类
+    	Object returnValue = invokeForRequest(webRequest, mavContainer, providedArgs);
+    //真正对returnValue做一个Handler处理，this.returnValueHandlers是一个HandlerMethodReturnValueHandlerComposite类
+    this.returnValueHandlers.handleReturnValue(
+    					returnValue, getReturnValueType(returnValue), mavContainer, webRequest);
+    //RequestResponseBodyMtrhodProcessor.java		handleReturnValue()
+    //尝试对结果进行输出
+    writeWithMessageConverters(returnValue, returnType, inputMessage, outputMessage);
+    //AbstractMessageConverterMethodProcessor.java	writeWithMessageConverters()
+    	//取结果的Type
+    	valueType = getReturnValueType(body, returnType);
+    	//根据MessageConverter一个一个做尝试，看能不能处理这类型，即这MediaType
+    	for (HttpMessageConverter<?> converter : this.messageConverters) {
+    //使用Convertor对结果进行输出
+    genericConverter.write(body, targetType, selectedMediaType, outputMessage);
+    ```
+
+    这就是流程啦！这样写着没啥感觉，建议跟着老师把上面四个方法打点Debug跑一遍
+
+    还有之前说的 `RequestMappingHandlerAdapter.java`的	
+
+    `invocableMethod.setHandlerMethodReturnValueHandlers(this.returnValueHandlers);` 
+
+     里的`returnValueHandlers`：
+
+    ![](./images/6-63.png)
+
+    这里有很多`returnValueHandler`，我们需要的是第十一个，`RequestResponseBodyMethodProcessor`
+
+  
+
+  - 还有`AbstractMessageConverterMethodProcessor.java`的`writeWithMessageConverters()`方法内，根据MessageConverter一个一个做尝试，看能不能处理这类型，即这MediaType这一步骤,打断点可以看到：
+
+    ![](./images/6-64.png)
+
+    这里需要的MediaType是`“application/json”`
+
+    然后取得的Converter是
+
+    ![](./images/6-65.png)
+
+    然后拿到Body，这里的body就是我的Coffee
+
+    ![](./images/6-66.png)
+
+    最后经过`genericConverter.write(body, targetType, selectedMediaType, outputMessage);`，已经序列化成可见的json串，输出到response了
+
+
+
+- ### 两个特殊的视图
+
+  ![](./images/6-67.png)
+
+  **简单来说，**
+
+  - forward
+
+    服务器内部，浏览器url不会变化，不丢失request信息
+
+  - redirect
+
+    用户端（等于302跳转），浏览器url变化，丢失request信息
+
+  ![](./images/6-68.png)
+
+- redirect和forward前缀都写在哪里?
+
+  > 写在View的名字里，比如我返回String，这个是View的名称我就可以写return "redirect:/index"
