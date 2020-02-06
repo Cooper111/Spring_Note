@@ -695,7 +695,7 @@ public List<Coffee> getAllCoffee() {
 
   
 
-  # 0X05 定义类型装换
+  # 0X05 定义类型转换
 
   ![](./images/6-30.png)
 
@@ -792,13 +792,13 @@ public List<Coffee> getAllCoffee() {
 
 ​        这个项目是针对类型转换、校验和文件上传的。
 
-​	与之前相比，**改动在于Controller，和MoneyFormatter**。还记得在学数据操作时候的MoneyHandler吗，那是jdbc转换用的，别搞混了。
+​	与之前相比，**改动在于Controller，和MoneyFormatter**。还记得在学数据操作时候的Money**Handler**吗，那是**jdbc**转换用的，别搞混了。
 
 #### MoneyFormatter
 
 ![](./images/6-41.png)
 
-- 这里把MoneyFormatter注册成为@Component即可，理由上面有啦~
+- **这里把MoneyFormatter注册成为@Component即可，在上面看源码时知道了`WebMvcAutoConfiguration`如何加入`Converter`（过程），至于是怎么加入（@Component如何生效），见下面SpringMVC常用视图章节里对`WebMvcAutoConfiguration`类初始化的解析~**
 
 - 在parse方法里
 
@@ -1090,3 +1090,789 @@ public List<Coffee> getAllCoffee() {
 - redirect和forward前缀都写在哪里?
 
   > 写在View的名字里，比如我返回String，这个是View的名称我就可以写return "redirect:/index"
+
+找到了网上的资料：
+
+![](./images/6-69.png)
+
+
+
+
+
+
+
+
+
+# 0x09 SpringMVC常用视图
+
+![](./images/6-70.png)
+
+具体来说，官方文档的视图罗列：
+
+![](./images/6-71.png)
+
+- 消息转换器：MessageConverter
+
+  ![](./images/6-72.png)
+
+  ​	[自定义消息转换MessageConverter介绍说明](<https://www.cnblogs.com/hhhshct/p/9676604.html>)
+
+  > ​	在SpringMVC中，可以使用@RequestBody和@ResponseBody两个注解，分别完成请求报文到对象和对象到响应报文的转换，底层这种灵活的消息转换机制就是利用HttpMessageConverter来实现的，Spring内置了很多HttpMessageConverter，比如MappingJackson2HttpMessageConverter，StringHttpMessageConverter等
+
+  ​	在关于`Controller、RequestMapping`这种**handler**的method说明里就看到**自定义的消息转换**，还有上节课刚讲的`@ResponseBody`解析里。在视图部分也有对应的**MessageConverter**做类型到具体内容的转换。
+
+  图示例子是在springboot中添加两个自定义的converter进去。
+
+![](./images/6-73.png)
+
+
+
+### 来看源码！
+
+`WebMvcAutoConfiguration`类，在spring-boot-autoconfigure包的web/servlet下
+
+![](./images/6-74.png)
+
+这里通过`this.messageConvertersProvider`取得类里的`HttpMessageConverters`集合，每个都取出来，一一加入converters这个List里去，**所以我们只要再应用上下文中配置HttpMessageConverters的Bean就可以了**。
+
+`WebMvcAutoConfiguration`类还配置了很多ViewResolver，假设我们使用了freemarker，springboot会给我们配置了很多Freemarker相关的类（比如ViewResolver）
+
+然后看看和Jackson相关的，  `JacksonAutoConfiguration`类
+
+![](./images/6-76.png)
+
+其中，
+
+```java
+@Bean
+public JsonComponentModule jsonComponentModule() {
+   return new JsonComponentModule();
+}
+```
+
+这个便是用来处理jsonComponent注解的，在其内
+
+```
+private void addJsonBean(Object bean, Class<?>[] types, Scope scope)
+//这个方法中，将JsonSerializer、JsonDeserializer添加到Json当中
+```
+
+还有`ObjectMapper`等等的配置
+
+还有在spring-boot-autoconfigure包的http包下，`JacksonHttpMessageConvertersConfiguration`里，存在`mappingJackson2HttpMessageConverter`，和`mappingJackson2XmlHttpMessageConverter`
+
+百度搜到了[MappingJackson2HttpMessageConverter的用法](<https://blog.csdn.net/m0_38016299/article/details/78338048>)
+
+
+
+## 项目：json-view-demo
+
+目标：
+
+1.有一个Handler返回的`@ResponseBody`是一个Coffee类，不加`produces = MediaType.APPLICATION_JSON_UTF8_VALUE`使其返回json / xml  （通过Accept头决定）
+
+2.定制money序列化为json时候为数值，而不是一个序列化的money类
+
+3.接收Json的创建订单请求
+
+
+
+- MoneyDeserializer
+
+  ```java
+  @JsonComponent
+  public class MoneyDeserializer extends StdDeserializer<Money> {
+      protected MoneyDeserializer() {
+          super(Money.class);
+      }
+  
+      @Override
+      public Money deserialize(JsonParser p, DeserializationContext ctxt) throws IOException, JsonProcessingException {
+          return Money.of(CurrencyUnit.of("CNY"), p.getDecimalValue());
+      }
+  }
+  
+  ```
+
+- MoneySerializer
+
+  ```java
+  @JsonComponent
+  public class MoneySerializer extends StdSerializer<Money>{
+      protected MoneySerializer() {
+          super(Money.class);
+      }
+      @Override
+      public void serialize(Money money, JsonGenerator jsonGenerator, SerializerProvider serializerProvider) throws IOException {
+          jsonGenerator.writeNumber(money.getAmount());
+      }
+  }
+  ```
+
+- CoffeeController
+
+  ```java
+      @RequestMapping(path = "/{id}", method = RequestMethod.GET)
+      @ResponseBody
+      public Coffee getById(@PathVariable Long id) {
+          Coffee coffee = coffeeService.getCoffee(id);
+          log.info("Coffee {}:", coffee);
+          return coffee;
+      }
+  
+      @GetMapping(path = "/", params = "name")
+      @ResponseBody
+      public Coffee getByName(@RequestParam String name) {
+          return coffeeService.getCoffee(name);
+      }
+  ```
+
+  
+
+参考：[springboot序列化和反序列化](<https://blog.csdn.net/qq27Ke/article/details/81951947>)
+
+- 通过name查询咖啡
+
+  ![](./images/6-77.png)
+
+  可以看到，返回的已经不是Money序列化后的结果了
+
+  ![](./images/6-78.png)
+
+  加上Accept头后，返回xml
+
+- 通过id查询咖啡
+
+  ![](./images/6-79.png)
+
+  这里返回的是HibernateProxy后的对象，是加入`Hibernate5Module`这个Bean后有的，如果不加的话会报错
+
+- Json请求
+
+  ![](./images/6-80.png)
+
+  在Terminal测试格式
+
+  ![](./images/6-82.png)
+
+
+
+
+
+# 0x10 Thymeleaf
+
+- 添加Thymeleaf依赖
+
+  ![](./images/6-83.png)
+
+- Thymealeaf一些配置
+
+  ![](./images/6-84.png)
+
+  
+
+- 使用注意点：
+
+  我们在`main/resource`目录下编辑，但要把更新的内容搬运到`target`文件夹里，不然不会显示更新内容。
+
+- [Springboot---Model,ModelMap,ModelAndView](https://blog.csdn.net/likunpeng6656201/article/details/97503800)
+
+- [Springboot-ObjectMapper类使用](https://blog.csdn.net/runbat/article/details/89164524)
+
+  Object Mapeer应该是用于序列化的···
+
+- @ModelAttribute
+
+  被@ModelAttribute注释的方法会在此controller每个方法执行前被执行,它把请求参数加入到一个名为attributeName的model属性中
+
+  ```java
+      @ModelAttribute
+      public List<Coffee> coffeeList() {
+          return coffeeService.getAllCoffee();
+      }
+  ```
+
+
+
+### 实验项目： Thymeleaf-demo
+
+- CoffeeOrderController
+
+  ```java
+  	@GetMapping("/{id}")
+      @ResponseBody
+      public CoffeeOrder getOrder(@PathVariable("id") Long id) {
+          return orderService.get(id);
+      }
+  	@ModelAttribute
+      public List<Coffee> coffeeList() {
+          return coffeeService.getAllCoffee();
+      }
+  
+      @GetMapping(path = "/")
+      public ModelAndView showCreateForm() {
+          return new ModelAndView("create-order-form");
+      }
+  
+      @PostMapping(path = "/", consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
+      public String createOrder(@Valid NewOrderRequest newOrder,
+                                      BindingResult result, ModelMap map) {
+          if (result.hasErrors()) {
+              log.warn("Binding Result: {}", result);
+              map.addAttribute("message", result.toString());
+              return "create-order-form";
+          }
+  
+          log.info("Receive new Order {}", newOrder);
+          Coffee[] coffeeList = coffeeService.getCoffeeByName(newOrder.getItems())
+                  .toArray(new Coffee[] {});
+          CoffeeOrder order = orderService.createOrder(newOrder.getCustomer(), coffeeList);
+          return "redirect:/order/" + order.getId();
+      }
+  ```
+
+- templates/create-order-form.html
+
+  ````html
+  <html xmlns:th="http://www.thymeleaf.org">
+      <body>
+          <h2>Coffee Available Today</h2>
+          <table>
+              <thead>
+                  <tr>
+                      <th>Coffee Name</th>
+                      <th>Price</th>
+                  </tr>
+              </thead>
+              <tbody>
+                  <tr th:each="coffee : ${coffeeList}">
+                      <td th:text="${coffee.name}">Espresso</td>
+                      <td th:text="${coffee.price}">CNY 12.0</td>
+                  </tr>
+              </tbody>
+          </table>
+          <h2>Your Order</h2>
+          <form action="#" th:action="@{/order/}" method="post">
+              <label>Customer Name</label>
+              <input type="text" name="customer" />
+              <ul>
+                  <li th:each="coffee : ${coffeeList}">
+                      <input type="checkbox" name="items" th:value="${coffee.name}" />
+                      <label th:text="${coffee.name}">Espresso</label>
+                  </li>
+              </ul>
+              <input type="submit" value="Submit"/>
+              <p th:text="${message}">Message</p>
+          </form>
+      </body>
+  </html>
+  ````
+
+- ![](./images/d6-85.png)
+
+- ![](./images/6-86.png)
+
+  可以看到，**redict重定向**了
+
+
+
+# 0x11 静态资源与缓存
+
+- 首先的观点：**不推荐用Spring**做静态资源缓存服务，可以用**Nginx**，或者用**CDN\CMS**这样的系统专门来处理资源和做资源的变更
+
+- ### Spring boot中的静态资源配置
+
+  ![](./images/6-87.png)
+
+  [Springboot的resources下资源访问的问题](https://www.cnblogs.com/shuaiqin/p/11517849.html)，当时做hadoop可视化时搜的，还有访问`webapp/WEB-INF/page`下的jsp文件可以见hadoop项目笔记。
+
+![](./images/d6-91.png)
+
+看到首先取出缓存相关配置，然后有webjar的话会设置webjar的支持
+
+```java
+String staticPathPattern = this.mvcProperties.getStaticPathPattern();
+if (!registry.hasMappingForPattern(staticPathPattern)) {
+  customizeResourceHandlerRegistration(registry.addResourceHandler(staticPathPattern)
+        .addResourceLocations(getResourceLocations(this.resourceProperties
+        .getStaticLocations()))
+  		.setCachePeriod(getSeconds(cachePeriod))
+        .setCacheControl(cacheControl));
+			}
+```
+
+这里取出静态资源路径`staticPathPattern`，去**设置ResourceHandler**，去**找Locations资源路径**，还有**设置cache**，这里`CacheControl`的设置会覆盖掉上面`CachePeriod`
+
+进入CacheControl
+
+![](./images/6-92.png)
+
+可进行相关设置
+
+### 小实验：
+
+- application.properties
+
+  ```properties
+  spring.mvc.static-path-pattern=/static/**
+  ```
+
+- 在resouce/static下放置spring.png
+
+- 访问 http://localhost:8080/static/spring.png
+
+  ![](./images/6-93.png)
+
+
+
+- ### Spring boot 中的缓存配置
+
+  ![](./images/6-88.png)
+
+- Controller中设置缓存
+
+  ![](./images/6-90.png)
+
+  ![](./images/6-89.png)
+
+  [ResultBody<T>示例](<https://www.cnblogs.com/hickup089/p/9909845.html>)
+
+  
+
+  ### 小实验
+
+- appilcaition.properties
+
+  ```properties
+  spring.resources.cache.cachecontrol.no-cache=true
+  ```
+
+- 如果上述配置不加，并且在请求头内添加`if-Modifield-Since`，（请求第二次）则状态码返回**302**
+
+  ![](./images/6-94.png)
+
+  `If-Modified-Since`是标准的HTTP请求头标签，在发送HTTP请求时，把浏览器端缓存页面的最后修改时间一起发到服务器去，服务器会把这个时间与服务器上实际文件的最后修改时间进行比较。
+
+  - 如果时间一致，那么返回HTTP状态码304（不返回文件内容），客户端接到之后，就直接把本地缓存文件显示到浏览器中。
+
+  - 如果时间不一致，就返回HTTP状态码200和新的文件内容，客户端接到之后，会丢弃旧文件，把新文件缓存起来，并显示到浏览器中。
+
+- 如果添加上述配置，则返回Headers里
+
+  ![](./images/6-95.png)
+
+  返回响应Heade里cache-Control为no-cache，意为不直接使用缓存，要求向服务器发起（新鲜度）请求
+
+  cache-Conreol解析: [链接](<https://blog.csdn.net/u012375924/article/details/82806617>)
+
+- CoffeeController    ——使用ResponseBody
+
+  ```java
+  @RequestMapping(path = "/{id}", method = RequestMethod.GET,
+              produces = MediaType.APPLICATION_JSON_UTF8_VALUE)
+      @ResponseBody
+      public ResponseEntity<Coffee> getById(@PathVariable Long id) {
+          Coffee coffee = coffeeService.getCoffee(id);
+          return ResponseEntity.ok()
+                  .cacheControl(CacheControl.maxAge(10, TimeUnit.SECONDS))
+                  .body(coffee);
+      }
+  ```
+
+- 测试cache-Control的maxAge
+
+  ![](./images/6-96.png)
+
+  MaxAge作用：<https://blog.csdn.net/zhongshanxian/article/details/81289034>
+
+  ![](./images/6-97.png)
+
+
+
+- 建议的资源访问方式
+
+  ![](./images/6-98.png)
+
+**CDN** 的全称是 `Content Delivery Network`，即内容分发网络。CDN 系统能够实时地根据网络流量和各节点的连接、负载状况以及到用户的距离和响应时间等综合信息将用户的请求重新导向离用户最近的服务节点上；其目的是使用户可就近取得所需内容，解决 Internet 网络拥挤的状况，提高用户访问网站的响应速度。
+
+简要来说**CND**具有路由功能，能根据访问地址，进行负载均衡分配服务器
+
+![](./images/6-99.png)
+
+
+
+# Spring MVC异常处理机制
+
+- ### SpringMVC 异常解析
+
+![](./images/6-100.png)
+
+其中`ResponseStatusEcxeptionResolver`处理带`@ResponseStatus`的注解或者类的，可以在异常类上添加这个注解，标明http响应码会是什么
+
+经过后面实验，发现`@ExceptionHandlerException`处理`Exception`异常
+
+
+
+
+
+### 来看源码
+
+在DispatchServlet.java的doService方法中，执行完doDispatch，在doDispatch时如果抛出异常，一场被捕获
+
+```java
+catch (Exception ex) {
+				dispatchException = ex;
+			}
+```
+
+然后再DoDIspatch函数的processDispatchResult()函数处理结果时，会查看有没有传入异常,如果有，做处理：
+
+```java
+else {
+		Object handler = (mappedHandler != null ? mappedHandler.getHandler() : null);
+		mv = processHandlerException(request, response, handler, exception);
+		errorView = (mv != null);
+	}
+```
+
+进入`processHandlerException`函数
+
+![](./images/6-101.png)
+
+这里返回值为ModelAndView，然后这里遍历的的`this.handlerExceptionResolvers`便是整个可用的`HandlerExceptionResolver`集合
+
+```java
+/** List of HandlerExceptionResolvers used by this servlet. */
+@Nullable
+private List<HandlerExceptionResolver> handlerExceptionResolvers;
+```
+
+
+
+- ### SpringMVC 异常处理方法
+
+  ![](./images/6-102.png)
+
+  - 可以在带`@Controller`的类中添加一个带有`@ExceptionHandler`注解的方法来处理异常
+
+  - 也可以做AOP的动作，编写@ControllerAdvice，在@ControllerAdvice编写一个带有`@ExceptionHandler`注解的方法。这个方法优先级低于在`@Controller`中的方法。
+
+> 开发者可以自己定义一个ExceptionHandler类处理所有的异常，在这个类上加上@ControllerAdvice注解，这个类就以AOP的形式注册到SpringMVC的处理链条中了，在应用任何地方抛出Exception，最后都会调用到这个handler中的方法上，在Handler类中，可以和上面一样使用@ExceptionHandler注解来区别对待不同的Exception。
+
+
+
+**@ExceptionHandler**`( xxx.class)`可以传入很多类型，实验中是`validationException.class`
+
+![](./images/6-103.png)
+
+返回值也是给中各种的,实验是返回对象作为ResponseBody
+
+
+
+### 实验项目：Exception-demo
+
+#### @ResponseStatus示例
+
+处理带`@ResponseStatus(HttpStatus.BAD_REQUEST)`后，Spring会调用`HandlerExceptionResolver`的`ResponseStatusEcxeptionResolver`来处理这种http异常请求
+
+
+
+分别掩饰SpringMVC处理和ControllerAdapter处理；
+
+这里要**演示Controller里方法和ControllerAdapter**，所以抛出的错误类型不一样
+
+- SpringMVC对应错误FormValidationException，
+
+- ControllerAdapter对应默认的ValidationException，由自定义的`@ExceptionHandler`处理
+
+
+
+这里没有演示单个异常处理，就是在Controller中加入被@ExceptionHandler修饰的类，那样的话该异常处理方法只在当前的controller中起作用
+
+
+
+#### 首先演示SpringMVC处理错误
+
+- `BindingResult`定制错误处理，处理表单的
+
+  ```java
+  	@PostMapping(path = "/", consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
+      @ResponseBody
+      @ResponseStatus(HttpStatus.CREATED)
+      public Coffee addCoffee(@Valid NewCoffeeRequest newCoffee,
+                              BindingResult result) {
+          if (result.hasErrors()) {
+              log.warn("Binding Errors: {}", result);
+              //throw new ValidationException(result.toString());
+              throw new FormValidationException(result);
+          }
+          return coffeeService.saveCoffee(newCoffee.getName(), newCoffee.getPrice());
+      }
+  ```
+
+- FormValidationException
+
+  ```java
+  @ResponseStatus(HttpStatus.BAD_REQUEST)
+  @Getter
+  @AllArgsConstructor
+  public class FormValidationException extends RuntimeException {
+      private BindingResult result;
+  }
+  ```
+
+测试结果：这里是没有result的输出的
+
+![](./images/6-104.png)
+
+
+
+
+
+#### 然后是ControllerAdvice处理错误
+
+- CoffeeController
+
+  ```java
+  @PostMapping(path = "/", consumes = MediaType.APPLICATION_JSON_UTF8_VALUE)
+      @ResponseBody
+      @ResponseStatus(HttpStatus.CREATED)
+      public Coffee addJsonCoffee(@Valid @RequestBody NewCoffeeRequest newCoffee,
+                                  BindingResult result) {
+          if (result.hasErrors()) {
+              log.warn("Binding Errors: {}", result);
+              throw new ValidationException(result.toString());
+          }
+          return coffeeService.saveCoffee(newCoffee.getName(), newCoffee.getPrice());
+      }
+  ```
+
+- 自定义异常处理方法,创建  **GlobalControllerAdvice**
+
+  ```java
+  @RestControllerAdvice
+  public class GlobalControllerAdvice {
+      @ExceptionHandler(ValidationException.class)
+      @ResponseStatus(HttpStatus.BAD_REQUEST)
+      public Map<String, String> validationExceptionHandler(ValidationException exception) {
+          Map<String, String> map = new HashMap<>();
+          map.put("message", exception.getMessage());
+          return map;
+      }
+  }
+  ```
+
+  用于处理`validationException`
+
+  ![](./images/6-105.png)
+
+
+
+这里好文章：[玩转springboot：自定义异常处理和深入异常处理原理](<https://blog.csdn.net/sihai12345/article/details/81220781>),解释默认返回的error信息
+
+
+
+我的问题来了：刚看源码知道错误是由`handlerExceptionResolver`解决的，其中：
+
+- ValidationException，由自定义的`@ExceptionHandler`处理
+- 自定义的FormValidationException，由   ···不知道  处理
+
+那么归根结底，这两种错误是由哪个`handlerExceptionResolver`处理的呢？
+
+- ValidationException，由自定义的`@ExceptionHandler`处理
+
+  Debug看看：
+
+  ![](./images/6-106.png)
+
+  有两个`handlerExceptionResolvers`可能对应`@ExceptionHandler`
+
+  ![](./images/6-107.png)
+
+  看来第一个DefaultErrorAttributes不是
+
+  ![](./images/6-108.png)
+
+  结论：带@ExceptionHandler的异常处理方法，是通过`ExceptionHandlerExceptionResolver`的resolveException方法处理
+
+  > 在DispatcherServlet初始化的时候，会去容器中找HandlerExceptionResolver类型的类。而刚刚的ExceptionHandlerExceptionResolver类就是继承了HandlerExceptionResolver接口，所以这个地方就将他放入了DispatcherServlet中。所以上面的遍历handlerExceptionResolvers处理异常信息的地方，就是调用了ExceptionHandlerExceptionResolver的resolveException方法。所以我们进入该方法。
+
+
+
+- 自定义的FormValidationException
+
+  ![](./images/6-109.png)
+
+  结论：奥，也是`ExceptionHandlerExceptionResolver`处理的······
+
+- 结论：不管是@RestControllerAdvice对应默认的ValidationException，由自定义的@ExceptionHandler方法处理，还是SpringMVC对应错误FormValidationException，最终都是通过   ExceptionHandlerExceptionResolver  处理错误
+
+
+
+现在其实是知道了处理异常的`HandlerExceptionResolver`，
+
+```java
+for (HandlerExceptionResolver handlerExceptionResolver : this.resolvers) {
+				ModelAndView mav = handlerExceptionResolver.resolveException(request, response, handler, ex);
+				if (mav != null) {
+					return mav;
+				}
+			}
+```
+
+`handlerExceptionResolver.resolveException(request, response, handler, ex);`这条语句中的**handler原来是要处理的函数**···
+
+```java
+//Validation对应的，json访问，@ExceptionHandler注解方法
+com.example.demo.controller.CoffeeController#addJsonCoffee(NewCoffeeRequest, BindingResult)
+//FormValidation对应的，表单访问，@ExceptionHandler注解方法
+com.example.demo.controller.CoffeeController#addCoffee(NewCoffeeRequest, BindingResult)
+```
+
+
+
+那么`ControllerAdvice和ExceptionHandler注解的作用`，即对`ExceptionHandlerExceptionResolver`的影响呢？
+
+[参考链接](<https://blog.csdn.net/weixin_33901843/article/details/91416688>)
+
+![](./images/6-110.png)
+
+在ExceptionHandlerExceptionResolver类中，该类扫描了所有标注有ExceptionHandler注解的方法，并将他们存入了exceptionHandlerAdviceCache中。
+
+
+
+然后再在`ExceptionHandlerExceptionResolver`方法中，
+
+```java
+protected ServletInvocableHandlerMethod getExceptionHandlerMethod(
+      @Nullable HandlerMethod handlerMethod, Exception exception) 
+```
+
+里，
+
+```java
+for (Map.Entry<ControllerAdviceBean, ExceptionHandlerMethodResolver> entry : this.exceptionHandlerAdviceCache.entrySet()) {
+			ControllerAdviceBean advice = entry.getKey();
+			if (advice.isApplicableToBeanType(handlerType)) {
+				ExceptionHandlerMethodResolver resolver = entry.getValue();
+				Method method = resolver.resolveMethod(exception);
+				if (method != null) {
+					return new ServletInvocableHandlerMethod(advice.resolveBean(), method);
+				}
+			}
+		}
+```
+
+感觉是取出来一个一个试试能不能处理··
+
+这个`ServletInvocableHandlerMethod`，是根据`HandlerMethod`创建，在执行某个Controller中的方法时候调用的···具体源码分析看这篇：<https://blog.csdn.net/qq924862077/article/details/53944721>···我没看完，下次一定
+
+
+
+回到这里
+
+```
+- ①ValidationException，由自定义的`@ExceptionHandler`方法处理
+- ②自定义的FormValidationException，由   ···不知道  处理
+```
+
+经过下文的实验，得出：
+
+①结论是`ExceptionHandlerExceptionResolver`以Bean的方式调用自定义的方法`validationExceptionHandler`来处理ValidationException错误
+
+②结论是`ExceptionHandlerExceptionResolver`找不到方法来处理这个自定义的错误，return了个null，然后一路的函数调用返回值都为null，直到DIspatchServlet：
+
+```java
+	// We might still need view name translation for a plain error model...
+			if (!exMv.hasView()) {
+				String defaultViewName = getDefaultViewName(request);
+				if (defaultViewName != null) {
+					exMv.setViewName(defaultViewName);
+				}
+			}
+```
+
+给了默认模板，结束。
+
+
+
+### 实验过程
+
+在DispatchServlet的DoDispatch中的processHandlerException，对结果后处理中，
+
+调用ExceptionHandlerExceptionResolverComposite.resolver方法，在
+
+![](./images/6-111.png)
+
+中遍历取出ExceptionHandlerExceptionResolver，调用ExceptionHandlerExceptionResolver的resolveException(request, response, handler, ex)方法
+
+
+
+resolveException方法在ExceptionHandlerExceptionResolver的二级父类中实现，核心是
+
+```java
+ModelAndView result = doResolveException(request, response, handler, ex);
+```
+
+而doResolveException在ExceptionHandlerExceptionResolver的一级父类中实现，核心是
+
+```java
+doResolveHandlerMethodException(request, response, (HandlerMethod) handler, ex);
+```
+
+而doResolveHandlerMethodException方法在**ExceptionHandlerExceptionResolver**实现，其中
+
+```java
+ServletInvocableHandlerMethod exceptionHandlerMethod = getExceptionHandlerMethod(handlerMethod, exception);
+```
+
+进入getExceptionHandlerMethod！！！这个方法！就是调用标注有ExceptionHandler注解的地方！
+
+![](./images/6-112.png)
+
+这里看到
+
+![](./images/6-113.png)
+
+看到啦，在后半部分，**validationExceptionHandler**被调用了
+
+再看一下②的返回：
+
+![](./images/6-114.png)
+
+而第四个断点无效，也就是说②没有HandlerMethod能处理····
+
+
+
+再返回`doResolveHandlerMethodException`
+
+这整个一系列操作···就是为了**返回ModelAndView**
+
+doResolveHandlerMethodException通过getExceptionHandlerMethod
+
+取得  ServletInvocableHandlerMethod后，调用：
+
+```java
+if (cause != null) {
+				// Expose cause as provided argument as well
+				//根据提供的参数暴露原因
+				exceptionHandlerMethod.invokeAndHandle(webRequest, mavContainer, exception, cause, handlerMethod);
+			}
+			else {
+				// Otherwise, just the given exception as-is
+                //否则，只保留给定的异常
+				exceptionHandlerMethod.invokeAndHandle(webRequest, mavContainer, exception, handlerMethod);
+			}
+```
+
+在`exceptionHandlerMethod.invokeAndHandle`中，它是最后处理请求的阶段，也就是把请求转换为视图的阶段。它主要应用到ModelAndViewContainer这个类
+
+搜到一篇介绍解析:  <https://blog.csdn.net/weixin_40918067/article/details/90416442>
+
+不看啦不看啦！反正就是设置ModelAndView容器的！下次一定！看
+
+
+
+最后贴一下解决完自己疑问后跑过去评论区的回答
+
+![](./images/6-115.png)
